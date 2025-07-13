@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "La Obrera y el Zángano",
+    "slug": "obrera-zangano-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "backgroundColor": "#000000",
+    "primaryColor": "#D4AF37",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.obrerayzangano.app"
+    },
+    "android": {
+      "package": "com.obrerayzangano.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "themeColor": "#D4AF37"
+    },
+    "plugins": ["expo-router", "expo-font", "expo-web-browser"],
+    "extra": {
+      "eas": {
+        "projectId": "obrera-zangano-app"
+      }
+    },
+    "owner": "obrerayzangano"
+  }
+}

@@ -1,0 +1,1 @@
+export const MERCADOPAGO_SUPER_ESSENTIAL_FLOW_URL = "https://www.mercadopago.cl/subscriptions/checkout?preapproval_plan_id=2c93808497f5faa70197fc1f9cde0294"; 
