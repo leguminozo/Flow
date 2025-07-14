@@ -319,7 +319,7 @@ export async function getStoreByHandle(handle: string): Promise<SupabaseStore | 
             name: 'Obrera y Zángano',
             logo_url: 'https://cdn.shopify.com/s/files/1/0123/4567/files/logo.png',
             description: 'Productos artesanales y naturales de calidad premium',
-            store_type: 'Especializado',
+            store_type: 'Especializado' as const,
             rating: 4.9,
             delivery_time: '2-3 días',
             minimum_order: 15000,

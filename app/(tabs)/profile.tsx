@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Modal, TextInput, Alert } from 'react-native';
-import { User, Settings, CreditCard, Truck, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, MapPin, Plus, CreditCard as Edit3, Trash2, Check, ChevronDown, ChevronUp, Crown, Star, Zap, FileText, Lock } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Modal, TextInput, Alert, Image } from 'react-native';
+import { User, Settings, CreditCard, Truck, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, MapPin, Plus, CreditCard as Edit3, Trash2, Check, ChevronDown, ChevronUp, Crown, Star, Zap, FileText, Lock, Wallet } from 'lucide-react-native';
 import { mockAddresses, mockPlans } from '@/data/mockData';
 import { Address } from '@/types';
 import AddressManager from '@/components/AddressManager';
 import PaymentPlans from '@/components/PaymentPlans';
 import { useTranslation } from 'react-i18next';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as ImagePicker from 'expo-image-picker';
+// Añadir import para router de Expo Router
+import { useRouter } from 'expo-router';
 
 interface PaymentMethod {
   id: number;
@@ -28,10 +32,24 @@ interface UserProfile {
   totalSavings: number;
   activeSubscriptions: number;
   currentPlan: string;
+  avatar: string; // Added avatar to the interface
 }
+
+// 1. Cambios de color en la paleta y estilos principales
+const OLD_MONEY_COLORS = {
+  background: '#000000',
+  card: '#18181a',
+  primary: '#556052', // Verde oliva oscuro
+  secondary: '#E5DCC3', // Beige claro
+  gold: '#BFA14A', // Oro viejo
+  text: '#FFFFFF',
+  textSecondary: '#B8B8B8',
+  border: '#2a2a2a',
+};
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [addresses, setAddresses] = useState<Address[]>(mockAddresses);
   const [showAddressManager, setShowAddressManager] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -42,7 +60,8 @@ export default function ProfileScreen() {
   const [editingPayment, setEditingPayment] = useState<PaymentMethod | null>(null);
   const [expandedCards, setExpandedCards] = useState<{[key: string]: boolean}>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<number | null>(1);
-  
+  const [showEditProfileSheet, setShowEditProfileSheet] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile>({
     firstName: 'María',
     lastName: 'González',
@@ -53,8 +72,13 @@ export default function ProfileScreen() {
     memberSince: 'Enero 2024',
     totalSavings: 24500,
     activeSubscriptions: 3,
-    currentPlan: 'Súper Esencial Flow'
+    currentPlan: 'Súper Esencial Flow',
+    avatar: 'https://via.placeholder.com/150' // Placeholder avatar
   });
+
+  const [tempProfile, setTempProfile] = useState(userProfile);
+  const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
     firstName: userProfile.firstName,
@@ -129,7 +153,7 @@ export default function ProfileScreen() {
 
   const handleSaveProfile = () => {
     if (!profileForm.firstName.trim() || !profileForm.lastName.trim() || !profileForm.email.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos obligatorios');
+      Alert.alert('⚠️ Campos Requeridos', 'Por favor completa todos los campos obligatorios (Nombre, Apellido y Email)');
       return;
     }
 
@@ -138,7 +162,7 @@ export default function ProfileScreen() {
       ...profileForm
     });
     setShowProfileForm(false);
-    Alert.alert('Éxito', 'Perfil actualizado correctamente');
+    Alert.alert('✅ Información Actualizada', 'Tu información personal ha sido actualizada correctamente');
   };
 
   const handleSavePayment = () => {
@@ -288,16 +312,105 @@ export default function ProfileScreen() {
 
   const getPlanIcon = (planId: string) => {
     switch (planId) {
-      case 'esencial-flow': return <Zap size={20} color="#D4AF37" strokeWidth={2} />;
-      case 'super-esencial-flow': return <Crown size={20} color="#D4AF37" strokeWidth={2} />;
-      default: return <Zap size={20} color="#D4AF37" strokeWidth={2} />;
+      case 'esencial-flow': return <Zap size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />;
+      case 'super-esencial-flow': return <Crown size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />;
+      default: return <Zap size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />;
     }
   };
 
+  const handleEditAvatar = () => setShowAvatarModal(true);
+
+  const handlePickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para seleccionar fotos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      setTempProfile({ ...tempProfile, avatar: result.assets[0].uri });
+      setUnsavedChanges(true);
+      setShowAvatarModal(false);
+    }
+  };
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara para tomar fotos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      setTempProfile({ ...tempProfile, avatar: result.assets[0].uri });
+      setUnsavedChanges(true);
+      setShowAvatarModal(false);
+    }
+  };
+  const handleRemovePhoto = () => {
+    setTempProfile({ ...tempProfile, avatar: 'https://via.placeholder.com/150' });
+    setUnsavedChanges(true);
+    setShowAvatarModal(false);
+  };
+
+  // Función para abrir sheet
+  const handleOpenEditSheet = () => {
+    if (isClosing) return;
+    setTempProfile(userProfile);
+    setUnsavedChanges(false);
+    setShowEditProfileSheet(true);
+  };
+
+  // Función para guardar cambios
+  const handleSaveProfileChanges = () => {
+    setUserProfile(tempProfile);
+    setIsClosing(true);
+    setShowEditProfileSheet(false);
+    setTimeout(() => setIsClosing(false), 400);
+    Alert.alert('Éxito', 'Perfil actualizado correctamente');
+  };
+
+  // Función para manejar cierre del sheet
+  const handleSheetClose = () => {
+    if (unsavedChanges) {
+      Alert.alert(
+        '¿Quieres descartar los cambios?',
+        'Si vuelves atrás, se perderán todos los cambios.',
+        [
+          { text: 'Descartar', onPress: () => { setUnsavedChanges(false); setIsClosing(true); setShowEditProfileSheet(false); setTimeout(() => setIsClosing(false), 400); } },
+          { text: 'Seguir editando', style: 'cancel', onPress: () => {} }
+        ],
+        { cancelable: false }
+      );
+    } else {
+      setIsClosing(true);
+      setShowEditProfileSheet(false);
+      setTimeout(() => setIsClosing(false), 400);
+    }
+  };
+
+  // Logo dinámico o placeholder
+  const logoUrl = undefined; // Reemplazar por la URL de tu logo si la tienes
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
+      {/* Header con logo */}
       <View style={styles.header}>
+        <View style={styles.logoContainer}>
+          {logoUrl ? (
+            <Image source={{ uri: logoUrl }} style={styles.logoImage} />
+          ) : (
+            <Text style={{ color: OLD_MONEY_COLORS.gold, fontSize: 32, fontWeight: 'bold' }}>LOGO</Text>
+          )}
+        </View>
         <Text style={styles.headerTitle}>{t('profile.title')}</Text>
         <Text style={styles.headerSubtitle}>{t('profile.subtitle')}</Text>
       </View>
@@ -305,7 +418,7 @@ export default function ProfileScreen() {
       {/* User Info Card */}
       <View style={styles.userCard}>
         <View style={styles.avatarContainer}>
-          <User size={40} color="#D4AF37" strokeWidth={2} />
+          <User size={40} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{userProfile.firstName} {userProfile.lastName}</Text>
@@ -318,9 +431,9 @@ export default function ProfileScreen() {
         </View>
         <TouchableOpacity 
           style={styles.editProfileButton}
-          onPress={() => setShowProfileForm(true)}
+          onPress={handleOpenEditSheet}
         >
-          <Edit3 size={20} color="#D4AF37" strokeWidth={2} />
+          <Settings size={18} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -338,20 +451,36 @@ export default function ProfileScreen() {
 
       {/* Personal Information Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('profile.personalInfo')}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('profile.personalInfo')}</Text>
+          <TouchableOpacity 
+            style={styles.editInfoButton}
+            onPress={() => setShowProfileForm(true)}
+          >
+            <Settings size={16} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
         
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>RUT:</Text>
-            <Text style={styles.infoValue}>{userProfile.rut}</Text>
+            <Text style={styles.infoLabel}>Nombre Completo:</Text>
+            <Text style={styles.infoValue}>{userProfile.firstName} {userProfile.lastName}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Email:</Text>
+            <Text style={styles.infoValue}>{userProfile.email}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Teléfono:</Text>
+            <Text style={styles.infoValue}>{userProfile.phone}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Fecha de Nacimiento:</Text>
             <Text style={styles.infoValue}>{userProfile.birthDate}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Teléfono:</Text>
-            <Text style={styles.infoValue}>{userProfile.phone}</Text>
+            <Text style={styles.infoLabel}>Miembro desde:</Text>
+            <Text style={styles.infoValue}>{userProfile.memberSince}</Text>
           </View>
         </View>
       </View>
@@ -392,9 +521,9 @@ export default function ProfileScreen() {
             
             <View style={styles.expandIcon}>
               {expandedCards.plan ? (
-                <ChevronUp size={16} color="#666666" strokeWidth={2} />
+                <ChevronUp size={16} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
               ) : (
-                <ChevronDown size={16} color="#666666" strokeWidth={2} />
+                <ChevronDown size={16} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
               )}
             </View>
           </View>
@@ -407,7 +536,7 @@ export default function ProfileScreen() {
                 <Text style={styles.planDetailsTitle}>Beneficios incluidos:</Text>
                 {currentPlan.features.map((feature, index) => (
                   <View key={index} style={styles.planFeatureRow}>
-                    <Check size={16} color="#10B981" strokeWidth={2} />
+                    <Check size={16} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
                     <Text style={styles.planFeatureText}>{feature}</Text>
                   </View>
                 ))}
@@ -435,7 +564,7 @@ export default function ProfileScreen() {
                   style={styles.changePlanButton}
                   onPress={() => setShowPlanSelector(true)}
                 >
-                  <Zap size={16} color="#000000" strokeWidth={2} />
+                  <Zap size={16} color={OLD_MONEY_COLORS.text} strokeWidth={2} />
                   <Text style={styles.changePlanButtonText}>Cambiar Plan</Text>
                 </TouchableOpacity>
               </View>
@@ -444,132 +573,50 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Addresses Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('profile.deliveryAddresses')}</Text>
-          <TouchableOpacity 
-            style={styles.createButton}
-            onPress={() => setShowAddressManager(true)}
-          >
-            <Text style={styles.createButtonText}>{t('profile.create')}</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {getDefaultAddress() && (
-          <View style={styles.addressPreview}>
-            <MapPin size={20} color="#D4AF37" strokeWidth={2} />
-            <View style={styles.addressPreviewInfo}>
-              <Text style={styles.addressPreviewName}>
-                {getDefaultAddress()?.name} (Principal)
-              </Text>
-              <Text style={styles.addressPreviewText}>
-                {getDefaultAddress()?.address}
-              </Text>
-              <Text style={styles.addressPreviewCity}>
-                {getDefaultAddress()?.city}
-              </Text>
-            </View>
-            <ChevronRight size={16} color="#666666" strokeWidth={2} />
+      {/* Addresses Section - como ítem de lista */}
+      <View style={[styles.menuItem, styles.cardSpacing]}>
+        <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => router.push('/address-manager')}>
+          <View style={styles.iconCircle}>
+            <MapPin size={20} color={OLD_MONEY_COLORS.primary} strokeWidth={2} />
           </View>
-        )}
-
-        <View style={styles.addressSummary}>
-          <Text style={styles.addressSummaryText}>
-            {addresses.length} {addresses.length === 1 ? 'dirección guardada' : 'direcciones guardadas'}
-          </Text>
-          <TouchableOpacity onPress={() => setShowAddressManager(true)}>
-            <Text style={styles.viewAllText}>Ver todas</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.menuItemText}>Direcciones de entrega</Text>
+            <Text style={styles.menuItemSubtext}>
+              {addresses.length === 0 ? 'No tienes direcciones guardadas' : `${addresses.length} ${addresses.length === 1 ? 'dirección guardada' : 'direcciones guardadas'}`}
+            </Text>
+          </View>
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
+        </TouchableOpacity>
       </View>
+      <View style={styles.separatorLine} />
 
-      {/* Payment Methods Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('profile.paymentMethods')}</Text>
-          <TouchableOpacity 
-            style={styles.addButton}
-            onPress={() => setShowPaymentForm(true)}
-          >
-            <Plus size={16} color="#D4AF37" strokeWidth={2} />
-          </TouchableOpacity>
-        </View>
-        
-        {paymentMethods.map((method) => (
-          <TouchableOpacity
-            key={method.id}
-            style={[
-              styles.paymentCard,
-              selectedPaymentMethod === method.id && styles.paymentCardSelected
-            ]}
-            onPress={() => handleSelectPaymentMethod(method.id)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.paymentCardHeader}>
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentIcon}>{getPaymentTypeIcon(method.type)}</Text>
-                <View style={styles.paymentDetails}>
-                  <Text style={styles.paymentType}>
-                    {getPaymentTypeName(method.type)} •••• {method.last4}
-                  </Text>
-                  <Text style={styles.paymentHolder}>{method.holderName}</Text>
-                  <Text style={styles.paymentExpiry}>Vence: {method.expiryDate}</Text>
-                  {method.isDefault && (
-                    <Text style={styles.paymentDefault}>Método principal</Text>
-                  )}
-                </View>
-              </View>
-              
-              <View style={styles.paymentSelector}>
-                <View style={[
-                  styles.paymentSelectorCircle,
-                  selectedPaymentMethod === method.id && styles.paymentSelectorCircleSelected
-                ]}>
-                  {selectedPaymentMethod === method.id && (
-                    <View style={styles.paymentSelectorDot} />
-                  )}
-                </View>
-              </View>
-            </View>
-            
-            {selectedPaymentMethod === method.id && (
-              <View style={styles.paymentCardDetails}>
-                <View style={styles.detailsDivider} />
-                
-                <View style={styles.paymentActions}>
-                  {!method.isDefault && (
-                    <TouchableOpacity 
-                      style={styles.paymentActionButton}
-                      onPress={() => handleSetDefaultPayment(method.id)}
-                    >
-                      <Text style={styles.paymentActionText}>Hacer Principal</Text>
-                    </TouchableOpacity>
-                  )}
-                  
-                  <TouchableOpacity 
-                    style={styles.paymentActionButton}
-                    onPress={() => handleEditPayment(method)}
-                  >
-                    <Edit3 size={14} color="#D4AF37" strokeWidth={2} />
-                    <Text style={styles.paymentActionText}>Editar</Text>
-                  </TouchableOpacity>
-                  
-                  {paymentMethods.length > 1 && (
-                    <TouchableOpacity 
-                      style={styles.paymentActionButton}
-                      onPress={() => handleDeletePayment(method.id)}
-                    >
-                      <Trash2 size={14} color="#EF4444" strokeWidth={2} />
-                      <Text style={[styles.paymentActionText, { color: '#EF4444' }]}>Eliminar</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
+      {/* Wallet Item */}
+      <View style={[styles.menuItem, styles.cardSpacing]}>
+        <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => router.push('/wallet')}>
+          <View style={styles.iconCircle}>
+            <Wallet size={20} color={OLD_MONEY_COLORS.primary} strokeWidth={2} />
+          </View>
+          <Text style={styles.menuItemText}>Billetera</Text>
+          <View style={{ flex: 1 }} />
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
+        </TouchableOpacity>
       </View>
+      <View style={styles.separatorLine} />
+
+      {/* Configuración de notificaciones - acceso desde perfil */}
+      <View style={[styles.menuItem, styles.cardSpacing]}>
+        <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => router.push('/notifications-settings')}>
+          <View style={styles.iconCircle}>
+            <Bell size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.menuItemText}>Configuración de notificaciones</Text>
+            <Text style={styles.menuItemSubtext}>Personaliza tus alertas y preferencias</Text>
+          </View>
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.separatorLine} />
 
       {/* Account Settings */}
       <View style={styles.section}>
@@ -577,18 +624,18 @@ export default function ProfileScreen() {
         
         <TouchableOpacity style={styles.menuItem}>
           <View style={styles.menuItemLeft}>
-            <Settings size={20} color="#D4AF37" strokeWidth={2} />
+            <Settings size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
             <Text style={styles.menuItemText}>{t('profile.advancedSettings')}</Text>
           </View>
-          <ChevronRight size={20} color="#666666" strokeWidth={2} />
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem}>
           <View style={styles.menuItemLeft}>
-            <Truck size={20} color="#D4AF37" strokeWidth={2} />
+            <Truck size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
             <Text style={styles.menuItemText}>{t('profile.deliveryServices')}</Text>
           </View>
-          <ChevronRight size={20} color="#666666" strokeWidth={2} />
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -598,38 +645,48 @@ export default function ProfileScreen() {
         
         <View style={styles.preferenceItem}>
           <View style={styles.menuItemLeft}>
-            <Bell size={20} color="#D4AF37" strokeWidth={2} />
+            <View style={styles.iconCircle}>
+              <Bell size={20} color={OLD_MONEY_COLORS.primary} strokeWidth={2} />
+            </View>
             <View>
               <Text style={styles.menuItemText}>{t('profile.pushNotifications')}</Text>
               <Text style={styles.menuItemSubtext}>{t('profile.pushNotificationsDesc')}</Text>
             </View>
           </View>
           <Switch
+            style={styles.customSwitch}
             value={preferences.notifications}
-            trackColor={{ false: '#333333', true: '#D4AF37' }}
-            thumbColor={preferences.notifications ? '#000000' : '#666666'}
+            trackColor={{ false: OLD_MONEY_COLORS.border, true: OLD_MONEY_COLORS.gold }}
+            thumbColor={preferences.notifications ? OLD_MONEY_COLORS.background : OLD_MONEY_COLORS.secondary}
           />
         </View>
+        <View style={styles.separatorLine} />
 
         <View style={styles.preferenceItem}>
           <View style={styles.menuItemLeft}>
-            <Shield size={20} color="#D4AF37" strokeWidth={2} />
+            <View style={styles.iconCircle}>
+              <Shield size={20} color={OLD_MONEY_COLORS.primary} strokeWidth={2} />
+            </View>
             <View>
               <Text style={styles.menuItemText}>{t('profile.autoRenewal')}</Text>
               <Text style={styles.menuItemSubtext}>{t('profile.autoRenewalDesc')}</Text>
             </View>
           </View>
           <Switch
+            style={styles.customSwitch}
             value={preferences.autoRenew}
-            trackColor={{ false: '#333333', true: '#D4AF37' }}
-            thumbColor={preferences.autoRenew ? '#000000' : '#666666'}
+            trackColor={{ false: OLD_MONEY_COLORS.border, true: OLD_MONEY_COLORS.gold }}
+            thumbColor={preferences.autoRenew ? OLD_MONEY_COLORS.background : OLD_MONEY_COLORS.secondary}
           />
         </View>
+        <View style={styles.separatorLine} />
 
         <View style={styles.preferenceItem}>
           <View style={styles.menuItemLeft}>
-            <View style={styles.ecoIcon}>
-              <Text style={styles.ecoEmoji}>🌱</Text>
+            <View style={styles.iconCircle}>
+              <View style={styles.ecoIcon}>
+                <Text style={styles.ecoEmoji}>🌱</Text>
+              </View>
             </View>
             <View>
               <Text style={styles.menuItemText}>{t('profile.ecoPriority')}</Text>
@@ -637,9 +694,10 @@ export default function ProfileScreen() {
             </View>
           </View>
           <Switch
+            style={styles.customSwitch}
             value={preferences.ecoMode}
-            trackColor={{ false: '#333333', true: '#D4AF37' }}
-            thumbColor={preferences.ecoMode ? '#000000' : '#666666'}
+            trackColor={{ false: OLD_MONEY_COLORS.border, true: OLD_MONEY_COLORS.gold }}
+            thumbColor={preferences.ecoMode ? OLD_MONEY_COLORS.background : OLD_MONEY_COLORS.secondary}
           />
         </View>
       </View>
@@ -653,10 +711,10 @@ export default function ProfileScreen() {
           onPress={() => setShowTermsModal(true)}
         >
           <View style={styles.menuItemLeft}>
-            <FileText size={20} color="#D4AF37" strokeWidth={2} />
+            <FileText size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
             <Text style={styles.menuItemText}>{t('legal.termsOfService')}</Text>
           </View>
-          <ChevronRight size={20} color="#666666" strokeWidth={2} />
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -664,10 +722,10 @@ export default function ProfileScreen() {
           onPress={() => setShowPrivacyModal(true)}
         >
           <View style={styles.menuItemLeft}>
-            <Lock size={20} color="#D4AF37" strokeWidth={2} />
+            <Lock size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
             <Text style={styles.menuItemText}>{t('legal.privacyPolicy')}</Text>
           </View>
-          <ChevronRight size={20} color="#666666" strokeWidth={2} />
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -677,10 +735,10 @@ export default function ProfileScreen() {
         
         <TouchableOpacity style={styles.menuItem}>
           <View style={styles.menuItemLeft}>
-            <HelpCircle size={20} color="#D4AF37" strokeWidth={2} />
+            <HelpCircle size={20} color={OLD_MONEY_COLORS.gold} strokeWidth={2} />
             <Text style={styles.menuItemText}>{t('profile.helpCenter')}</Text>
           </View>
-          <ChevronRight size={20} color="#666666" strokeWidth={2} />
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem}>
@@ -688,7 +746,7 @@ export default function ProfileScreen() {
             <Text style={styles.contactEmoji}>💬</Text>
             <Text style={styles.menuItemText}>{t('profile.contactSupport')}</Text>
           </View>
-          <ChevronRight size={20} color="#666666" strokeWidth={2} />
+          <ChevronRight size={20} color={OLD_MONEY_COLORS.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -708,102 +766,85 @@ export default function ProfileScreen() {
 
       {/* Profile Form Modal */}
       <Modal
-        visible={showProfileForm}
+        visible={showEditProfileSheet}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={handleSheetClose}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Editar Perfil</Text>
-            <TouchableOpacity onPress={() => setShowProfileForm(false)}>
-              <Text style={styles.modalClose}>✕</Text>
+        <View style={styles.editSheetContainer}>
+          <View style={styles.editHeader}>
+            <TouchableOpacity onPress={handleSheetClose}>
+              <Text style={styles.headerText}>Cancelar</Text>
+            </TouchableOpacity>
+            <Text style={styles.editHeaderTitle}>Editar perfil</Text>
+            <TouchableOpacity onPress={handleSaveProfileChanges} disabled={!unsavedChanges}>
+              <Text style={[styles.headerText, !unsavedChanges && styles.disabledText]}>Guardar</Text>
             </TouchableOpacity>
           </View>
-          
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Nombre *</Text>
+          <ScrollView style={styles.editContent}>
+            <View style={styles.avatarSection}>
+              {tempProfile.avatar === 'https://via.placeholder.com/150' ? (
+                <View style={styles.avatarPlaceholder} />  // Círculo blanco como Spotify
+              ) : (
+                <Image source={{ uri: tempProfile.avatar }} style={styles.avatarImage} />
+              )}
+              <TouchableOpacity style={styles.editAvatarIcon} onPress={handleEditAvatar}>
+                <Edit3 size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Nombre</Text>
               <TextInput
-                style={styles.formInput}
-                value={profileForm.firstName}
-                onChangeText={(text) => setProfileForm({...profileForm, firstName: text})}
-                placeholder="Ingresa tu nombre"
-                placeholderTextColor="#666666"
+                style={styles.fieldInput}
+                value={tempProfile.firstName}
+                onChangeText={(text) => { setTempProfile({ ...tempProfile, firstName: text }); setUnsavedChanges(true); }}
               />
             </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Apellido *</Text>
+            <View style={styles.separator} />
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Apellido</Text>
               <TextInput
-                style={styles.formInput}
-                value={profileForm.lastName}
-                onChangeText={(text) => setProfileForm({...profileForm, lastName: text})}
-                placeholder="Ingresa tu apellido"
-                placeholderTextColor="#666666"
+                style={styles.fieldInput}
+                value={tempProfile.lastName}
+                onChangeText={(text) => { setTempProfile({ ...tempProfile, lastName: text }); setUnsavedChanges(true); }}
               />
             </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Email *</Text>
+            <View style={styles.separator} />
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Email</Text>
               <TextInput
-                style={styles.formInput}
-                value={profileForm.email}
-                onChangeText={(text) => setProfileForm({...profileForm, email: text})}
-                placeholder="tu@email.com"
-                placeholderTextColor="#666666"
+                style={styles.fieldInput}
+                value={tempProfile.email}
+                onChangeText={(text) => { setTempProfile({ ...tempProfile, email: text }); setUnsavedChanges(true); }}
                 keyboardType="email-address"
               />
             </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Teléfono</Text>
+            <View style={styles.separator} />
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Teléfono</Text>
               <TextInput
-                style={styles.formInput}
-                value={profileForm.phone}
-                onChangeText={(text) => setProfileForm({...profileForm, phone: text})}
-                placeholder="+56 9 1234 5678"
-                placeholderTextColor="#666666"
+                style={styles.fieldInput}
+                value={tempProfile.phone}
+                onChangeText={(text) => { setTempProfile({ ...tempProfile, phone: text }); setUnsavedChanges(true); }}
                 keyboardType="phone-pad"
               />
             </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>RUT</Text>
+            <View style={styles.separator} />
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Fecha de nacimiento</Text>
               <TextInput
-                style={styles.formInput}
-                value={profileForm.rut}
-                onChangeText={(text) => setProfileForm({...profileForm, rut: text})}
-                placeholder="12.345.678-9"
-                placeholderTextColor="#666666"
+                style={styles.fieldInput}
+                value={tempProfile.birthDate}
+                onChangeText={(text) => { setTempProfile({ ...tempProfile, birthDate: text }); setUnsavedChanges(true); }}
+                placeholder="DD/MM/YYYY"
               />
             </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Fecha de Nacimiento</Text>
-              <TextInput
-                style={styles.formInput}
-                value={profileForm.birthDate}
-                onChangeText={(text) => setProfileForm({...profileForm, birthDate: text})}
-                placeholder="DD/MM/AAAA"
-                placeholderTextColor="#666666"
-              />
+            <View style={styles.separator} />
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Miembro desde</Text>
+              <Text style={styles.fieldValue}>{tempProfile.memberSince}</Text>  // No editable, como Spotify
             </View>
           </ScrollView>
-          
-          <View style={styles.modalActions}>
-            <TouchableOpacity 
-              style={styles.modalCancelButton}
-              onPress={() => setShowProfileForm(false)}
-            >
-              <Text style={styles.modalCancelText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.modalSaveButton}
-              onPress={handleSaveProfile}
-            >
-              <Text style={styles.modalSaveText}>Guardar</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </Modal>
 
@@ -959,19 +1000,6 @@ export default function ProfileScreen() {
         />
       </Modal>
 
-      {/* Address Manager Modal */}
-      <Modal
-        visible={showAddressManager}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <AddressManager
-          addresses={addresses}
-          onAddressesChange={handleAddressesChange}
-          onClose={() => setShowAddressManager(false)}
-        />
-      </Modal>
-
       {/* Terms of Service Modal */}
       <Modal
         visible={showTermsModal}
@@ -1017,6 +1045,31 @@ export default function ProfileScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Avatar Modal */}
+      <Modal
+        visible={showAvatarModal}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.avatarModalContainer}>
+            <Text style={styles.avatarModalTitle}>Cambiar foto de perfil</Text>
+            <TouchableOpacity style={styles.avatarModalOption} onPress={handlePickFromGallery}>
+              <Text style={styles.avatarModalOptionBlue}>Elegir de la galería</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.avatarModalOption} onPress={handleTakePhoto}>
+              <Text style={styles.avatarModalOptionBlue}>Tomar foto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.avatarModalOption} onPress={handleRemovePhoto}>
+              <Text style={styles.avatarModalOptionRed}>Eliminar la foto actual</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.avatarModalOption} onPress={() => setShowAvatarModal(false)}>
+              <Text style={styles.avatarModalOptionBlue}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -1024,26 +1077,42 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: OLD_MONEY_COLORS.background,
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 24,
+    alignItems: 'center',
+  },
+  // Espacio para el logo
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: OLD_MONEY_COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  logoImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
   },
   headerTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     marginBottom: 4,
   },
   
   headerSubtitle: {
     fontSize: 16,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
   },
   userCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     marginHorizontal: 24,
     padding: 20,
     borderRadius: 16,
@@ -1051,13 +1120,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
   },
   avatarContainer: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#333333',
+    backgroundColor: OLD_MONEY_COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -1068,26 +1137,26 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     marginBottom: 2,
   },
   userPhone: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     marginBottom: 2,
   },
   memberSince: {
     fontSize: 12,
-    color: '#666666',
+    color: OLD_MONEY_COLORS.secondary,
     marginBottom: 8,
   },
   planBadge: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: OLD_MONEY_COLORS.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -1096,14 +1165,21 @@ const styles = StyleSheet.create({
   planText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#000000',
+    color: OLD_MONEY_COLORS.secondary,
   },
   editProfileButton: {
-    backgroundColor: '#333333',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: 'transparent',
+    padding: 8,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: OLD_MONEY_COLORS.primary,
+  },
+  editInfoButton: {
+    backgroundColor: 'transparent',
+    padding: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: OLD_MONEY_COLORS.border,
   },
   statsSection: {
     flexDirection: 'row',
@@ -1112,23 +1188,23 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
   },
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#D4AF37',
+    color: OLD_MONEY_COLORS.gold,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     textAlign: 'center',
   },
   section: {
@@ -1144,17 +1220,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    paddingHorizontal: 24,
-    marginBottom: 16,
+    color: OLD_MONEY_COLORS.text,
   },
   infoCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     marginHorizontal: 24,
     padding: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
   },
   infoRow: {
     flexDirection: 'row',
@@ -1164,25 +1238,25 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     fontWeight: '500',
   },
   infoValue: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     fontWeight: '600',
   },
   // Plan Card Styles
   planCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     marginHorizontal: 24,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
   },
   planCardExpanded: {
-    borderColor: '#D4AF37',
+    borderColor: OLD_MONEY_COLORS.gold,
   },
   planCardHeader: {
     flexDirection: 'row',
@@ -1200,12 +1274,12 @@ const styles = StyleSheet.create({
   planCardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     marginLeft: 8,
     flex: 1,
   },
   popularBadge: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: OLD_MONEY_COLORS.gold,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -1218,21 +1292,21 @@ const styles = StyleSheet.create({
   planCardPrice: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#D4AF37',
+    color: OLD_MONEY_COLORS.gold,
     marginBottom: 4,
   },
   planCardSubtitle: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     marginBottom: 8,
   },
   planCardDescription: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     lineHeight: 20,
   },
   expandIcon: {
-    backgroundColor: '#333333',
+    backgroundColor: OLD_MONEY_COLORS.border,
     padding: 8,
     borderRadius: 6,
   },
@@ -1241,7 +1315,7 @@ const styles = StyleSheet.create({
   },
   detailsDivider: {
     height: 1,
-    backgroundColor: '#333333',
+    backgroundColor: OLD_MONEY_COLORS.border,
     marginBottom: 16,
   },
   planDetailsContent: {
@@ -1250,7 +1324,7 @@ const styles = StyleSheet.create({
   planDetailsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     marginBottom: 8,
   },
   planFeatureRow: {
@@ -1260,37 +1334,37 @@ const styles = StyleSheet.create({
   },
   planFeatureText: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     marginLeft: 8,
     flex: 1,
   },
   planLimits: {
-    backgroundColor: '#333333',
+    backgroundColor: OLD_MONEY_COLORS.border,
     padding: 12,
     borderRadius: 8,
     marginTop: 8,
   },
   planLimitText: {
     fontSize: 12,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     marginBottom: 4,
   },
   planCostText: {
     fontSize: 12,
-    color: '#F59E0B',
+    color: OLD_MONEY_COLORS.gold,
     fontWeight: '600',
     marginBottom: 4,
   },
   planSavingsText: {
     fontSize: 12,
-    color: '#D4AF37',
+    color: OLD_MONEY_COLORS.gold,
     fontWeight: '600',
   },
   changePlanButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#D4AF37',
+    backgroundColor: OLD_MONEY_COLORS.gold,
     paddingVertical: 12,
     borderRadius: 8,
     marginTop: 16,
@@ -1302,14 +1376,14 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   addButton: {
-    backgroundColor: '#333333',
+    backgroundColor: OLD_MONEY_COLORS.border,
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: OLD_MONEY_COLORS.gold,
   },
   createButton: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: OLD_MONEY_COLORS.gold,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1320,13 +1394,13 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   addressPreview: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     marginHorizontal: 24,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -1337,17 +1411,17 @@ const styles = StyleSheet.create({
   addressPreviewName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     marginBottom: 4,
   },
   addressPreviewText: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     marginBottom: 2,
   },
   addressPreviewCity: {
     fontSize: 12,
-    color: '#666666',
+    color: OLD_MONEY_COLORS.secondary,
   },
   addressSummary: {
     flexDirection: 'row',
@@ -1357,25 +1431,25 @@ const styles = StyleSheet.create({
   },
   addressSummaryText: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
   },
   viewAllText: {
     fontSize: 14,
-    color: '#D4AF37',
+    color: OLD_MONEY_COLORS.gold,
     fontWeight: '500',
   },
   // Payment Card Styles
   paymentCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     marginHorizontal: 24,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
   },
   paymentCardSelected: {
-    borderColor: '#D4AF37',
+    borderColor: OLD_MONEY_COLORS.gold,
   },
   paymentCardHeader: {
     flexDirection: 'row',
@@ -1396,23 +1470,23 @@ const styles = StyleSheet.create({
   },
   paymentType: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     fontWeight: '500',
     marginBottom: 2,
   },
   paymentHolder: {
     fontSize: 12,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     marginBottom: 2,
   },
   paymentExpiry: {
     fontSize: 12,
-    color: '#666666',
+    color: OLD_MONEY_COLORS.secondary,
     marginBottom: 4,
   },
   paymentDefault: {
     fontSize: 12,
-    color: '#D4AF37',
+    color: OLD_MONEY_COLORS.gold,
     fontWeight: '600',
   },
   paymentSelector: {
@@ -1423,13 +1497,13 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#555555',
-    backgroundColor: '#D4AF37',
+    borderColor: OLD_MONEY_COLORS.secondary,
+    backgroundColor: OLD_MONEY_COLORS.gold,
     justifyContent: 'center',
     alignItems: 'center',
   },
   paymentSelectorCircleSelected: {
-    borderColor: '#D4AF37',
+    borderColor: OLD_MONEY_COLORS.gold,
   },
   paymentSelectorDot: {
     width: 8,
@@ -1453,7 +1527,7 @@ const styles = StyleSheet.create({
   },
   paymentActionText: {
     fontSize: 14,
-    color: '#D4AF37',
+    color: OLD_MONEY_COLORS.gold,
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -1463,11 +1537,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     marginHorizontal: 24,
     marginBottom: 1,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -1476,13 +1550,13 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     marginLeft: 12,
     fontWeight: '500',
   },
   menuItemSubtext: {
     fontSize: 12,
-    color: '#666666',
+    color: OLD_MONEY_COLORS.secondary,
     marginTop: 2,
   },
   preferenceItem: {
@@ -1491,11 +1565,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     marginHorizontal: 24,
     marginBottom: 1,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
   },
   ecoIcon: {
     width: 20,
@@ -1515,13 +1589,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     marginHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
     marginBottom: 32,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.border,
   },
   logoutText: {
     fontSize: 16,
@@ -1536,18 +1610,18 @@ const styles = StyleSheet.create({
   },
   appVersion: {
     fontSize: 14,
-    color: '#666666',
+    color: OLD_MONEY_COLORS.secondary,
     marginBottom: 8,
   },
   appDescription: {
     fontSize: 12,
-    color: '#666666',
+    color: OLD_MONEY_COLORS.secondary,
     textAlign: 'center',
     lineHeight: 16,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: OLD_MONEY_COLORS.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1557,16 +1631,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: OLD_MONEY_COLORS.border,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
   },
   modalClose: {
     fontSize: 24,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     padding: 8,
   },
   modalContent: {
@@ -1581,19 +1655,18 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     marginBottom: 8,
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
   formInput: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.card,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#333333',
+    fontSize: 14,
+    color: OLD_MONEY_COLORS.text,
+    borderWidth: 0,  // Sin borders
   },
   paymentTypeSelector: {
     flexDirection: 'row',
@@ -1603,17 +1676,17 @@ const styles = StyleSheet.create({
   paymentTypeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#333333',
+    backgroundColor: OLD_MONEY_COLORS.border,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#555555',
+    borderColor: OLD_MONEY_COLORS.secondary,
     minWidth: 100,
   },
   paymentTypeButtonActive: {
-    backgroundColor: '#D4AF37',
-    borderColor: '#D4AF37',
+    backgroundColor: OLD_MONEY_COLORS.gold,
+    borderColor: OLD_MONEY_COLORS.gold,
   },
   paymentTypeIcon: {
     fontSize: 16,
@@ -1621,7 +1694,7 @@ const styles = StyleSheet.create({
   },
   paymentTypeText: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     fontWeight: '500',
   },
   paymentTypeTextActive: {
@@ -1637,18 +1710,18 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#555555',
+    borderColor: OLD_MONEY_COLORS.secondary,
     marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxSelected: {
-    backgroundColor: '#D4AF37',
-    borderColor: '#D4AF37',
+    backgroundColor: OLD_MONEY_COLORS.gold,
+    borderColor: OLD_MONEY_COLORS.gold,
   },
   defaultToggleText: {
     fontSize: 16,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
   },
   modalActions: {
     flexDirection: 'row',
@@ -1656,26 +1729,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
+    borderTopColor: OLD_MONEY_COLORS.border,
     gap: 12,
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: '#333333',
+    backgroundColor: OLD_MONEY_COLORS.border,
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#555555',
+    borderColor: OLD_MONEY_COLORS.secondary,
   },
   modalCancelText: {
     fontSize: 16,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     fontWeight: '500',
   },
   modalSaveButton: {
     flex: 1,
-    backgroundColor: '#D4AF37',
+    backgroundColor: OLD_MONEY_COLORS.gold,
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -1688,7 +1761,7 @@ const styles = StyleSheet.create({
   // Legal Modal Styles
   legalModalContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: OLD_MONEY_COLORS.background,
   },
   legalModalHeader: {
     flexDirection: 'row',
@@ -1698,24 +1771,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: OLD_MONEY_COLORS.border,
   },
   legalModalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: OLD_MONEY_COLORS.text,
     flex: 1,
   },
   legalModalCloseButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: OLD_MONEY_COLORS.border,
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: OLD_MONEY_COLORS.secondary,
   },
   legalModalClose: {
     fontSize: 20,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
   },
   legalModalContent: {
     flex: 1,
@@ -1724,8 +1797,148 @@ const styles = StyleSheet.create({
   },
   legalModalText: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: OLD_MONEY_COLORS.textSecondary,
     lineHeight: 22,
     textAlign: 'justify',
+  },
+  // Avatar Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarModalContainer: {
+    backgroundColor: OLD_MONEY_COLORS.card,
+    borderRadius: 16,
+    padding: 24,
+    width: 300,
+    alignItems: 'center',
+  },
+  avatarModalTitle: {
+    color: OLD_MONEY_COLORS.text,
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  avatarModalOption: {
+    width: '100%',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  avatarModalOptionBlue: {
+    color: '#1DB954',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  avatarModalOptionRed: {
+    color: '#FF3B30',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  editAvatarIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: OLD_MONEY_COLORS.border,  // Gris oscuro para pencil bg
+    borderRadius: 20,
+    padding: 4,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFFFFF',  // Círculo blanco como Spotify placeholder
+  },
+  editSheetContainer: {
+    flex: 1,
+    backgroundColor: OLD_MONEY_COLORS.background,  // Negro puro como Spotify
+  },
+  editHeader: {
+    backgroundColor: OLD_MONEY_COLORS.card,  // Gris oscuro para header, comfort visual
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: OLD_MONEY_COLORS.border,  // Separator gris suave
+  },
+  headerText: {
+    color: OLD_MONEY_COLORS.text,  // Blanco puro, no gold para match
+    fontSize: 16,
+  },
+  disabledText: {
+    color: OLD_MONEY_COLORS.secondary,  // Gris dim para disabled
+  },
+  editHeaderTitle: {
+    color: OLD_MONEY_COLORS.text,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  editContent: {
+    backgroundColor: OLD_MONEY_COLORS.background,  // Negro puro
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  fieldLabel: {
+    color: OLD_MONEY_COLORS.textSecondary,
+    fontSize: 16,
+    flex: 1,
+  },
+  fieldInput: {
+    color: OLD_MONEY_COLORS.text,
+    fontSize: 16,
+    flex: 1,
+    textAlign: 'right',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  fieldValue: {
+    color: OLD_MONEY_COLORS.text,
+    fontSize: 16,
+    flex: 1,
+    textAlign: 'right',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: OLD_MONEY_COLORS.border,
+    marginHorizontal: 0,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginVertical: 32,
+  },
+  // Añadir estilos para fondo circular de íconos
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: OLD_MONEY_COLORS.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  // Espaciado vertical entre tarjetas/opciones
+  cardSpacing: {
+    marginBottom: 16,
+  },
+  // Separador sutil
+  separatorLine: {
+    height: 1,
+    backgroundColor: OLD_MONEY_COLORS.border,
+    marginHorizontal: 24,
+  },
+  // Switch personalizado
+  customSwitch: {
+    transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }],
   },
 });

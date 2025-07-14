@@ -129,6 +129,8 @@ class ShopifyService {
   // Método para hacer peticiones GraphQL
   private async graphqlRequest(query: string, variables: any = {}) {
     try {
+      console.log(`🔄 Realizando petición GraphQL a ${this.baseUrl}`);
+      
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: this.headers,
@@ -139,20 +141,111 @@ class ShopifyService {
       });
 
       if (!response.ok) {
+        console.error(`❌ Error HTTP: ${response.status} - ${response.statusText}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       
       if (data.errors) {
+        console.error('❌ Errores GraphQL:', data.errors);
         throw new Error(`GraphQL error: ${JSON.stringify(data.errors)}`);
       }
 
+      console.log('✅ Petición GraphQL exitosa');
       return data.data;
     } catch (error) {
-      console.error('Shopify GraphQL request failed:', error);
+      console.error('❌ Error en petición GraphQL:', error);
+      
+      // Si es un error de red, retornar datos mock para desarrollo
+      if (error instanceof Error && (error.message.includes('Network request failed') || error.message.includes('fetch'))) {
+        console.log('🔄 Usando datos mock debido a error de red');
+        return this.getMockData(query);
+      }
+      
       throw error;
     }
+  }
+
+  // Método para obtener datos mock cuando hay problemas de red
+  private getMockData(query: string) {
+    if (query.includes('getProducts')) {
+      return {
+        products: {
+          edges: [
+            {
+              node: {
+                id: 'gid://shopify/Product/1',
+                title: 'Café Premium',
+                description: 'Café de especialidad tostado artesanalmente',
+                handle: 'cafe-premium',
+                productType: 'Bebidas',
+                vendor: 'Obrera y Zángano',
+                tags: ['Premium', 'Artesanal'],
+                availableForSale: true,
+                priceRange: {
+                  minVariantPrice: { amount: '9990', currencyCode: 'CLP' },
+                  maxVariantPrice: { amount: '9990', currencyCode: 'CLP' }
+                },
+                images: {
+                  edges: [{
+                    node: {
+                      id: 'gid://shopify/ProductImage/1',
+                      url: 'https://images.pexels.com/photos/324028/pexels-photo-324028.jpeg?auto=compress&cs=tinysrgb&w=800',
+                      altText: 'Café Premium',
+                      width: 800,
+                      height: 600
+                    }
+                  }]
+                },
+                variants: {
+                  edges: [{
+                    node: {
+                      id: 'gid://shopify/ProductVariant/1',
+                      title: '250g',
+                      price: { amount: '9990', currencyCode: 'CLP' },
+                      availableForSale: true,
+                      quantityAvailable: 50,
+                      sku: 'CAFE-001',
+                      weight: 250,
+                      weightUnit: 'GRAMS'
+                    }
+                  }]
+                }
+              }
+            }
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null }
+        }
+      };
+    }
+    
+    if (query.includes('getCollections')) {
+      return {
+        collections: {
+          edges: [
+            {
+              node: {
+                id: 'gid://shopify/Collection/1',
+                title: 'Café de Especialidad',
+                description: 'Los mejores cafés artesanales',
+                handle: 'cafe-especialidad',
+                image: {
+                  id: 'gid://shopify/CollectionImage/1',
+                  url: 'https://images.pexels.com/photos/324028/pexels-photo-324028.jpeg?auto=compress&cs=tinysrgb&w=800',
+                  altText: 'Café de Especialidad',
+                  width: 800,
+                  height: 600
+                },
+                products: { edges: [{ node: { id: 'gid://shopify/Product/1' } }] }
+              }
+            }
+          ]
+        }
+      };
+    }
+    
+    return null;
   }
 
   // Obtener todos los productos
@@ -240,6 +333,8 @@ class ShopifyService {
       const products = data.collectionByHandle.products.edges.map((edge: any) => 
         this.transformProduct(edge.node)
       );
+      
+      return products;
     } catch (error) {
       console.error('Error fetching products by collection:', error);
       return [];

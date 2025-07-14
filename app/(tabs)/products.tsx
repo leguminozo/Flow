@@ -472,14 +472,16 @@ export default function CatalogScreen() {
   };
 
   const renderProductsList = (products: Product[]) => (
-    <View style={[styles.productsList, {flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between'}]}>
+    <View style={styles.productsList}>
       {products.map((product) => (
-        <View key={product.id} style={{width: '48%', marginBottom: 16}}>
+        <View key={product.id} style={[
+          styles.productCard,
+          product.store === 'Obrera y Zángano' && styles.shopifyProductCard
+        ]}>
           <PremiumProductCard
             key={product.id}
             product={product}
             onPress={() => handleProductSelectForBuilder(product)}
-            onAddToCart={() => addToCart(product.id)}
             showShopifyBadge={product.store === 'Obrera y Zángano'}
             variant={product.store === 'Obrera y Zángano' ? 'featured' : 'default'}
           />
@@ -705,13 +707,12 @@ export default function CatalogScreen() {
         presentationStyle="fullScreen"
       >
         <SubscriptionBuilder
+          mode={Object.keys(initialProductsForBuilder).length > 0 ? 'personalized' : 'exploratory'}
           products={allProducts}
+          initialProducts={Object.keys(initialProductsForBuilder).length > 0 ? 
+            allProducts.filter(p => initialProductsForBuilder[p.id]) : []}
           onSubscriptionCreate={handleSubscriptionCreated}
-          onClose={() => {
-            setShowSubscriptionBuilder(false);
-            setInitialProductsForBuilder({});
-          }}
-          initialSelectedProducts={initialProductsForBuilder}
+          onClose={() => setShowSubscriptionBuilder(false)}
         />
       </Modal>
     </View>
@@ -1117,18 +1118,20 @@ const styles = StyleSheet.create({
   },
   // Products List Styles
   productsList: {
-    paddingHorizontal: 24,
-    paddingBottom: 100,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   productCard: {
-    flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    marginBottom: 16,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  shopifyProductCard: {
+    backgroundColor: '#1a1a1a',
     borderColor: '#333333',
-    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 8,
   },
   productCardDisabled: {
     opacity: 0.6,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Modal, Alert } from 'react-native';
-import { Calendar, Clock, Package, CreditCard as Edit, Pause, Play, Trash2, Plus, MapPin, Truck } from 'lucide-react-native';
+import { Calendar, Clock, Package, CreditCard as Edit, Pause, Play, Trash2, Plus, MapPin } from 'lucide-react-native';
 import { mockDeliveryServices } from '@/data/mockData';
 import SubscriptionEditor from '@/components/SubscriptionEditor';
 import SubscriptionBuilder from '@/components/SubscriptionBuilder';
@@ -390,6 +390,7 @@ function SubscriptionsScreen() {
         presentationStyle="fullScreen"
       >
         <SubscriptionBuilder
+          mode="exploratory"
           products={mockProducts}
           onSubscriptionCreate={handleSubscriptionCreated}
           onClose={() => setShowBuilder(false)}

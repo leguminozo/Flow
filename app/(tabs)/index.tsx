@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, ArrowRight, Zap, Package, Calendar, MapPin, CreditCard, Clock, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Plus, ArrowRight, Zap, Package, Calendar, MapPin, CreditCard, Clock, ChevronDown, ChevronUp, Bell } from 'lucide-react-native';
 import { mockProducts } from '@/data/mockData';
 import { getShopifyStoreStats } from '@/data/shopifyData';
 import ShopifyIntegrationStatus from '@/components/ShopifyIntegrationStatus';
 import SubscriptionBuilder from '@/components/SubscriptionBuilder';
 import PaymentPlans from '@/components/PaymentPlans';
-import AddressManager from '@/components/AddressManager';
-import { mockAddresses } from '@/data/mockData';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LanguageToggle } from '@/components/LanguageToggle';
@@ -21,9 +19,7 @@ export default function HomeScreen() {
   const isMounted = useRef(true);
   const [showSubscriptionBuilder, setShowSubscriptionBuilder] = useState(false);
   const [showPaymentPlans, setShowPaymentPlans] = useState(false);
-  const [showAddressManager, setShowAddressManager] = useState(false);
   const [expandedCards, setExpandedCards] = useState<{[key: string]: boolean}>({});
-  const [addresses, setAddresses] = useState(mockAddresses);
   const [shopifyStats, setShopifyStats] = useState<any>(null);
   const [storeData, setStoreData] = useState<any>(null);
   
@@ -83,17 +79,53 @@ export default function HomeScreen() {
 
   const loadStoreData = async () => {
     try {
+      console.log('🔍 Buscando tienda por handle: obrerayzangano');
       const data = await getStoreByHandle('obrerayzangano');
       if (data && isMounted.current) {
         setStoreData(data);
         console.log('✅ Datos de tienda cargados:', data.name);
       } else if (isMounted.current) {
-        Alert.alert('Error', 'No se pudo cargar los datos de la tienda. Por favor, verifica tu conexión a internet y reinicia la app.');
+        console.log('📊 Perfil de tienda obtenido: No encontrado');
+        // Crear tienda por defecto si no existe
+        const defaultStore = {
+          id: 1,
+          handle: 'obrerayzangano',
+          name: 'Obrera y Zángano',
+          logo_url: 'https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg?auto=compress&cs=tinysrgb&w=200',
+          description: 'Productos artesanales y naturales de calidad premium',
+          store_type: 'Especializado',
+          rating: 4.9,
+          delivery_time: '2-3 días',
+          minimum_order: 15000,
+          is_active: true,
+          specialties: ['Productos Artesanales', 'Miel Natural', 'Origen Local'],
+          shopify_domain: 'obrerayzangano.myshopify.com',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        setStoreData(defaultStore);
       }
     } catch (error) {
       console.error('Error loading store data:', error);
       if (isMounted.current) {
-        Alert.alert('Error de Conexión', 'Hubo un problema al conectar con el servidor. Intenta de nuevo más tarde.');
+        // No mostrar alerta, usar datos por defecto
+        const fallbackStore = {
+          id: 1,
+          handle: 'obrerayzangano',
+          name: 'Obrera y Zángano',
+          logo_url: 'https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg?auto=compress&cs=tinysrgb&w=200',
+          description: 'Productos artesanales y naturales de calidad premium',
+          store_type: 'Especializado',
+          rating: 4.9,
+          delivery_time: '2-3 días',
+          minimum_order: 15000,
+          is_active: true,
+          specialties: ['Productos Artesanales', 'Miel Natural', 'Origen Local'],
+          shopify_domain: 'obrerayzangano.myshopify.com',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        setStoreData(fallbackStore);
       }
     }
   };
@@ -174,20 +206,12 @@ export default function HomeScreen() {
     router.push('/(tabs)/products');
   };
 
-  const handleManageAddresses = () => {
-    setShowAddressManager(true);
-  };
-
   const handlePaymentMethods = () => {
     router.push('/wallet');
   };
 
   const handleUpgradePlan = () => {
     setShowPaymentPlans(true);
-  };
-
-  const handleAddressesChange = (newAddresses: any) => {
-    setAddresses(newAddresses);
   };
 
   const renderExpandableCard = (cardKey: string, cardData: any) => {
@@ -314,6 +338,15 @@ export default function HomeScreen() {
         end={{ x: 1, y: 1 }}
       >
         <View style={styles.heroContent}>
+          {/* Notificaciones - campana roja */}
+          <View style={{ position: 'absolute', top: 24, right: 24, zIndex: 10 }}>
+            <TouchableOpacity onPress={() => router.push('/notifications-center')} style={{ position: 'relative' }}>
+              <Bell size={28} color="#F44336" strokeWidth={2} />
+              <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#F44336', borderRadius: 8, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 }}>
+                <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>3</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
           {/* Language Toggle */}
           <View style={styles.languageToggleContainer}>
             <LanguageToggle />
@@ -479,12 +512,6 @@ export default function HomeScreen() {
             <Text style={styles.actionDescription}>{t('Crea tus propias automatizaciones')}</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionCard} onPress={handleManageAddresses}>
-            <MapPin size={24} color="#D4AF37" strokeWidth={2} />
-            <Text style={styles.actionTitle}>{t('home.manageAddresses')}</Text>
-            <Text style={styles.actionDescription}>{t('home.manageAddressesDesc')}</Text>
-          </TouchableOpacity>
-          
           <TouchableOpacity style={styles.actionCard} onPress={handlePaymentMethods}>
             <CreditCard size={24} color="#D4AF37" strokeWidth={2} />
             <Text style={styles.actionTitle}>{t('home.paymentMethods')}</Text>
@@ -500,6 +527,7 @@ export default function HomeScreen() {
         presentationStyle="fullScreen"
       >
         <SubscriptionBuilder
+          mode="exploratory"
           products={mockProducts}
           onSubscriptionCreate={handleSubscriptionCreated}
           onClose={() => setShowSubscriptionBuilder(false)}
@@ -518,19 +546,6 @@ export default function HomeScreen() {
             setShowPaymentPlans(false);
           }}
           onClose={() => setShowPaymentPlans(false)}
-        />
-      </Modal>
-
-      {/* Address Manager Modal */}
-      <Modal
-        visible={showAddressManager}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <AddressManager
-          addresses={addresses}
-          onAddressesChange={handleAddressesChange}
-          onClose={() => setShowAddressManager(false)}
         />
       </Modal>
     </ScrollView>

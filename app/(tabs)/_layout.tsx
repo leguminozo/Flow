@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Store, Calendar, User, Zap } from 'lucide-react-native';
+import { Chrome as Home, Store, Calendar, User, Zap, MapPin } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 export default function TabLayout() {
@@ -40,6 +40,24 @@ export default function TabLayout() {
           title: t('nav.catalog'),
           tabBarIcon: ({ size, color }) => (
             <Store size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="test"
+        options={{
+          title: 'Test',
+          tabBarIcon: ({ size, color }) => (
+            <MapPin size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="addresses"
+        options={{
+          title: 'Direcciones',
+          tabBarIcon: ({ size, color }) => (
+            <MapPin size={size} color={color} strokeWidth={2} />
           ),
         }}
       />

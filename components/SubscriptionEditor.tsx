@@ -30,6 +30,8 @@ export default function SubscriptionEditor({ subscription, onSave, onClose }: Su
   const [deliveryTime, setDeliveryTime] = useState(subscription.deliveryTime);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(subscription.nextDelivery));
   const [products, setProducts] = useState<SubscriptionProduct[]>(subscription.products);
+  const [customFrequency, setCustomFrequency] = useState(30);
+  const [selectedDeliveryService, setSelectedDeliveryService] = useState(mockDeliveryServices[0]);
   
   // Modal states
   const [showAddressManager, setShowAddressManager] = useState(false);
@@ -248,8 +250,8 @@ export default function SubscriptionEditor({ subscription, onSave, onClose }: Su
 
     // Show sync confirmation
     Alert.alert(
-      '🔄 Direcciones Sincronizadas',
-      `Las direcciones han sido actualizadas en toda la aplicación.\n\n📍 Total: ${newAddresses.length} direcciones\n🏠 Principal: ${newAddresses.find(addr => addr.isDefault)?.name || 'Ninguna'}`,
+      '🔄 Direcciones de Entrega Sincronizadas',
+      `Las direcciones de entrega han sido actualizadas en toda la aplicación.\n\n📍 Total: ${newAddresses.length} direcciones\n🏠 Principal: ${newAddresses.find(addr => addr.isDefault)?.name || 'Ninguna'}`,
       [{ text: 'Perfecto' }]
     );
   };
@@ -289,7 +291,7 @@ export default function SubscriptionEditor({ subscription, onSave, onClose }: Su
           </View>
           
           {products.map((product, index) => (
-            <View key={product.id} style={styles.productCard}>
+            <View key={product.productId} style={styles.productCard}>
               <View style={styles.productHeader}>
                 <View style={styles.productInfo}>
                   <Text style={styles.productName}>{product.product.name}</Text>
@@ -361,7 +363,7 @@ export default function SubscriptionEditor({ subscription, onSave, onClose }: Su
               style={styles.manageButton}
               onPress={() => setShowAddressManager(true)}
             >
-              <Text style={styles.manageButtonText}>Gestionar</Text>
+              <Text style={styles.manageButtonText}>Gestionar Direcciones</Text>
             </TouchableOpacity>
           </View>
           

@@ -475,6 +475,13 @@ export const mockPlans: Plan[] = [
 
 export const mockDeliveryServices: DeliveryService[] = [
   {
+    id: 'rappi',
+    name: 'Rappi',
+    estimatedCost: 1990,
+    estimatedTime: '15-30 min',
+    icon: '🚀'
+  },
+  {
     id: 'pedidosya',
     name: 'Pedidos Ya',
     estimatedCost: 2990,

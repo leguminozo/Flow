@@ -65,7 +65,7 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
 
   const handleSave = () => {
     if (!formData.name.trim() || !formData.address.trim() || !formData.city.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos obligatorios');
+      Alert.alert('Error', 'Por favor completa todos los campos obligatorios de la dirección de entrega');
       return;
     }
 
@@ -111,7 +111,7 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
     // Show success message
     Alert.alert(
       'Éxito', 
-      editingAddress ? 'Dirección actualizada correctamente' : 'Dirección agregada correctamente'
+      editingAddress ? 'Dirección de entrega actualizada correctamente' : 'Dirección de entrega agregada correctamente'
     );
   };
 
@@ -119,7 +119,7 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
     const addressToDelete = addresses.find(addr => addr.id === addressId);
     
     Alert.alert(
-      'Eliminar Dirección',
+      'Eliminar Dirección de Entrega',
       `¿Estás seguro de que deseas eliminar "${addressToDelete?.name}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
@@ -142,7 +142,7 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
             });
             
             onAddressesChange(sortedUpdatedAddresses);
-            Alert.alert('Éxito', 'Dirección eliminada correctamente');
+            Alert.alert('Éxito', 'Dirección de entrega eliminada correctamente');
           }
         }
       ]
@@ -163,7 +163,7 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
     });
     
     onAddressesChange(sortedUpdatedAddresses);
-    Alert.alert('Éxito', 'Dirección principal actualizada');
+    Alert.alert('Éxito', 'Dirección de entrega principal actualizada');
   };
 
   const getAddressIcon = (name: string) => {
@@ -174,10 +174,23 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Gestión de Direcciones</Text>
+        <Text style={styles.title}>Direcciones de Entrega</Text>
         <Text style={styles.subtitle}>Administra tus ubicaciones de entrega</Text>
         {onClose && (
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => {
+            if (isAddingNew || editingAddress) {
+              Alert.alert(
+                '¿Descartar cambios?',
+                'Tienes cambios sin guardar. ¿Quieres descartar?',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Descartar', style: 'destructive', onPress: () => { resetForm(); onClose(); } }
+                ]
+              );
+            } else {
+              onClose();
+            }
+          }}>
             <X size={24} color="#CCCCCC" strokeWidth={2} />
           </TouchableOpacity>
         )}
@@ -188,7 +201,7 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
         {!isAddingNew && !editingAddress && (
           <TouchableOpacity style={styles.addButton} onPress={handleAddNew}>
             <Plus size={20} color="#000000" strokeWidth={2} />
-            <Text style={styles.addButtonText}>Agregar Nueva Dirección</Text>
+            <Text style={styles.addButtonText}>Agregar Nueva Dirección de Entrega</Text>
           </TouchableOpacity>
         )}
 
@@ -196,12 +209,12 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
         {(isAddingNew || editingAddress) && (
           <View style={styles.formContainer}>
             <Text style={styles.formTitle}>
-              {editingAddress ? 'Editar Dirección' : 'Nueva Dirección'}
+              {editingAddress ? 'Editar Dirección de Entrega' : 'Nueva Dirección de Entrega'}
             </Text>
 
             {/* Address Type Selection */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Tipo de Dirección</Text>
+              <Text style={styles.inputLabel}>Tipo de Dirección de Entrega</Text>
               <View style={styles.typeSelector}>
                 {addressTypes.map((type) => {
                   const IconComponent = type.icon;
@@ -247,7 +260,7 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
 
             {/* Address Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Dirección *</Text>
+              <Text style={styles.inputLabel}>Dirección de Entrega *</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="Ej: Av. Las Condes 12345, Las Condes"
@@ -323,7 +336,7 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
         {!isAddingNew && !editingAddress && (
           <View style={styles.addressesList}>
             <View style={styles.sectionTitleContainer}>
-              <Text style={styles.sectionTitle}>Direcciones Guardadas</Text>
+              <Text style={styles.sectionTitle}>Direcciones de Entrega Guardadas</Text>
               <Text style={styles.sectionSubtitle}>
                 La dirección principal aparece primero
               </Text>
@@ -332,9 +345,9 @@ export default function AddressManager({ addresses, onAddressesChange, onClose }
             {addresses.length === 0 ? (
               <View style={styles.emptyState}>
                 <MapPin size={48} color="#666666" strokeWidth={1} />
-                <Text style={styles.emptyStateTitle}>No hay direcciones guardadas</Text>
+                <Text style={styles.emptyStateTitle}>No hay direcciones de entrega guardadas</Text>
                 <Text style={styles.emptyStateDescription}>
-                  Agrega tu primera dirección para comenzar a recibir entregas
+                  Agrega tu primera dirección de entrega para comenzar a recibir entregas
                 </Text>
               </View>
             ) : (

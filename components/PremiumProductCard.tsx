@@ -9,21 +9,21 @@ import * as Haptics from 'expo-haptics';
 interface PremiumProductCardProps {
   product: Product;
   onPress: () => void;
-  onAddToCart?: () => void;
   onAddToFavorites?: () => void;
   isFavorite?: boolean;
   showShopifyBadge?: boolean;
   variant?: 'default' | 'compact' | 'featured';
+  selected?: boolean;
 }
 
 export default function PremiumProductCard({ 
   product, 
   onPress, 
-  onAddToCart,
   onAddToFavorites,
   isFavorite = false,
   showShopifyBadge = false,
-  variant = 'default'
+  variant = 'default',
+  selected = false
 }: PremiumProductCardProps) {
   const isShopifyProduct = product.store === 'Obrera y Zángano';
   const isCompact = variant === 'compact';
@@ -164,25 +164,19 @@ export default function PremiumProductCard({
             </View>
 
             <View style={styles.actions}>
-              {onAddToCart && product.inStock && (
-                <TouchableOpacity 
-                  style={[styles.addButton, isFeatured && styles.featuredAddButton]}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    onAddToCart();
-                  }}
-                >
-                  {isCompact ? (
-                    <Plus size={16} color="#000000" strokeWidth={2} />
-                  ) : (
-                    <>
-                      <ShoppingCart size={16} color="#000000" strokeWidth={2} />
-                      <Text style={styles.addButtonText}>Agregar</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              )}
+              {/* Toggle Circle */}
+              <TouchableOpacity 
+                style={styles.toggleCircle}
+                onPress={onPress}
+              >
+                {selected ? (
+                  <View style={styles.selectedCircle}>
+                    <Text style={styles.checkMark}>✓</Text>
+                  </View>
+                ) : (
+                  <View style={styles.unselectedCircle} />
+                )}
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -497,5 +491,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#D4AF37',
     opacity: 0.2,
     zIndex: -1,
+  },
+  toggleCircle: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#D4AF37',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkMark: {
+    color: '#000000',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  unselectedCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#D4AF37',
   },
 });
